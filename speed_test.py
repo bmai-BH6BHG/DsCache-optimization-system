@@ -6,7 +6,7 @@ import sys
 
 base_url = "http://127.0.0.1:8001"
 headers = {
-    "Authorization": "Bearer sk-b11d27372dc729ee8840067d31eb51a1ad08d8f85c1b004b", 
+    "Authorization": "Bearer sk-your-key-here", 
     "Content-Type": "application/json"
 }
 

@@ -49,7 +49,7 @@ python relay_server.py
 
 ```
 ============================================================
-  SK 密钥:  sk-b11d27372dc729ee8840067d31eb51a1ad08d8f85c1b004b
+  SK 密钥:  sk-your-generated-key-here
   上游 API:  https://api.deepseek.com
   模型:      deepseek-v4-flash
 ============================================================

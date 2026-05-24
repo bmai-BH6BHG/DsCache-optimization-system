@@ -48,7 +48,7 @@ except Exception as e:
 # 5. 测试 OpenAI 兼容端点 - /v1/models
 print("\n5. Testing GET /v1/models (needs SK)...")
 try:
-    headers = {"Authorization": "Bearer sk-b11d27372dc729ee8840067d31eb51a1ad08d8f85c1b004b"}
+    headers = {"Authorization": "Bearer sk-your-key-here"}
     r = requests.get(f"{base_url}/v1/models", headers=headers)
     print(f"   Status: {r.status_code}")
     print(f"   Response: {r.text}")
@@ -59,7 +59,7 @@ except Exception as e:
 print("\n6. Testing POST /v1/chat/completions...")
 try:
     headers = {
-        "Authorization": "Bearer sk-b11d27372dc729ee8840067d31eb51a1ad08d8f85c1b004b", 
+        "Authorization": "Bearer sk-your-key-here", 
         "Content-Type": "application/json"
     }
     payload = {
