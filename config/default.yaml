@@ -1,0 +1,128 @@
+# DeepSeek 缓存优化器默认配置
+
+# 应用配置
+app:
+  name: "DeepSeek Cache Optimizer"
+  version: "1.0.0"
+  debug: false
+  log_level: "INFO"
+
+# MCP 服务配置
+mcp:
+  server:
+    host: "127.0.0.1"
+    port: 8080
+    workers: 1
+  
+# 缓存配置
+cache:
+  # 是否启用缓存
+  enabled: true
+  
+  # 语义相似度阈值 (0-1)
+  similarity_threshold: 0.85
+  
+  # 多级缓存配置
+  levels:
+    l1:
+      type: "memory"
+      max_size: 1000
+      ttl: 300  # 5分钟
+      cleanup_interval: 60
+    l2:
+      type: "sqlite"
+      max_size: 10000
+      ttl: 3600  # 1小时
+      db_path: "H:\\deepgui\\deepseek-cache-optimizer\\data\\cache_l2.db"
+    l3:
+      type: "file"
+      max_size: 100000
+      ttl: 86400  # 24小时
+      storage_path: "H:\\deepgui\\deepseek-cache-optimizer\\data\\cache_l3"
+  
+  # 自适应 TTL 配置
+  adaptive_ttl:
+    enabled: true
+    min_ttl: 60        # 最小TTL 1分钟
+    max_ttl: 604800    # 最大TTL 7天
+    hit_threshold: 5   # 命中多少次后增加TTL
+    miss_threshold: 3  # 未命中多少次后减少TTL
+    increment_factor: 1.5
+    decrement_factor: 0.7
+  
+  # 语义嵌入配置
+  embedding:
+    model: "H:\\huggingface_cache\\hub\\models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2\\snapshots\\e8f8c211226b894fcb81acc59f3b34ba3efd5f42"
+    device: "cpu"
+    batch_size: 32
+    max_length: 512
+  
+  # 预加载配置
+  preload:
+    enabled: true
+    max_preload: 10
+    confidence_threshold: 0.7
+    history_window: 50
+
+# 智能体配置
+agent:
+  # 请求拦截配置
+  interception:
+    enabled: true
+    normalize_whitespace: true
+    remove_comments: false
+    canonicalize_code: true
+  
+  # 上下文配置
+  context:
+    max_history: 10
+    context_window: 4096
+    relevance_threshold: 0.7
+  
+  # 缓存决策配置
+  decision:
+    min_confidence: 0.8
+    max_retries: 3
+    fallback_to_api: true
+
+# 可视化面板配置
+dashboard:
+  server:
+    host: "127.0.0.1"
+    port: 8050
+    debug: false
+  
+  # 图表配置
+  charts:
+    update_interval: 5000  # 毫秒
+    max_data_points: 1000
+    theme: "plotly_white"
+  
+  # 监控配置
+  monitoring:
+    enable_realtime: true
+    metrics_retention: 2592000  # 30天
+
+# 存储配置
+storage:
+  sqlite:
+    db_path: "./data/deepseek_cache.db"
+    pool_size: 5
+    max_overflow: 10
+  
+  metrics:
+    db_path: "./data/metrics.db"
+    retention_days: 30
+
+# 性能配置
+performance:
+  max_concurrent_requests: 50
+  request_timeout: 30
+  connection_pool_size: 20
+  
+# 日志配置
+logging:
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/deepseek_cache.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5

@@ -1,0 +1,15 @@
+{
+  "说明": "在 Trae 中添加自定义模型提供者，指向本机中继服务",
+  "providers": {
+    "deepseek-cache": {
+      "providerType": "openai-compatible",
+      "baseUrl": "http://127.0.0.1:8001/v1",
+      "apiKey": "请用仪表板上显示的 SK 密钥替换此处",
+      "models": ["deepseek-v4-flash", "deepseek-v4-pro"]
+    }
+  },
+  "settings": {
+    "trae.model.defaultProvider": "deepseek-cache",
+    "trae.model.defaultModel": "deepseek-v4-flash"
+  }
+}

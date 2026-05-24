@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepSeek Cache Optimizer | 实时监控</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #0f1117; color: #e1e4e8; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #1a1c2e 0%, #1f2347 100%); padding: 16px 24px; border-bottom: 1px solid #2d3048; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 20px; font-weight: 600; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4caf50; margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.metric-card { background: #1a1d2e; border: 1px solid #2d3048; border-radius: 10px; padding: 16px; }
+.metric-card .label { font-size: 12px; color: #8b8fa3; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.metric-card .value { font-size: 28px; font-weight: 700; }
+.metric-card .sub { font-size: 11px; color: #6b6f83; margin-top: 4px; }
+.value.green { color: #4caf50; }
+.value.blue { color: #667eea; }
+.value.orange { color: #ff9800; }
+.value.purple { color: #ab47bc; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.chart-card { background: #1a1d2e; border: 1px solid #2d3048; border-radius: 10px; padding: 16px; }
+.chart-card h3 { font-size: 14px; color: #8b8fa3; margin-bottom: 12px; }
+canvas { width: 100% !important; max-height: 250px; }
+.bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.table-card { background: #1a1d2e; border: 1px solid #2d3048; border-radius: 10px; padding: 16px; }
+.table-card h3 { font-size: 14px; color: #8b8fa3; margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 10px; color: #8b8fa3; border-bottom: 1px solid #2d3048; font-weight: 500; }
+td { padding: 8px 10px; border-bottom: 1px solid #1f2240; }
+tr:hover { background: rgba(102, 126, 234, 0.06); }
+.hit-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.hit-tag.cache { background: rgba(76, 175, 80, 0.15); color: #4caf50; }
+.hit-tag.api { background: rgba(255, 152, 0, 0.15); color: #ff9800; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; background: rgba(102, 126, 234, 0.15); color: #667eea; }
+.config-panel { background: #1a1d2e; border: 1px solid #2d3048; border-radius: 10px; padding: 20px; margin-bottom: 20px; display: none; }
+.config-panel.show { display: block; }
+.config-panel h3 { font-size: 14px; color: #8b8fa3; margin-bottom: 14px; }
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+.form-row label { font-size: 13px; color: #8b8fa3; min-width: 90px; }
+.form-row input, .form-row select { flex: 1; background: #0f1117; border: 1px solid #2d3048; border-radius: 6px; padding: 8px 12px; color: #e1e4e8; font-size: 13px; min-width: 200px; }
+.form-row input:focus { outline: none; border-color: #667eea; }
+.btn { padding: 8px 18px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; font-weight: 500; }
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+.btn-secondary { background: #2d3048; color: #e1e4e8; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.sk-display { font-size: 12px; color: #667eea; font-family: monospace; background: rgba(102,126,234,0.1); padding: 4px 10px; border-radius: 4px; }
+@media (max-width: 900px) { .charts-row, .bottom-row { grid-template-columns: 1fr; } .header { flex-direction: column; gap: 8px; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1><span class="status-dot"></span>DeepSeek Cache Optimizer</h1>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-secondary" onclick="toggleConfig()">配置</button>
+    <span class="sk-display" id="skDisplay">SK: ...</span>
+  </div>
+</div>
+
+<div class="container">
+
+<div class="config-panel" id="configPanel">
+  <h3>服务器配置</h3>
+  <div class="form-row">
+    <label>上游 API URL</label>
+    <input id="cfgUpstreamUrl" placeholder="https://api.deepseek.com">
+  </div>
+  <div class="form-row">
+    <label>上游 API Key</label>
+    <input id="cfgUpstreamKey" type="password" placeholder="sk-...">
+  </div>
+  <div class="form-row">
+    <label>默认模型</label>
+    <input id="cfgUpstreamModel" placeholder="deepseek-v4-flash">
+  </div>
+  <div class="form-row">
+    <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+    <button class="btn btn-secondary" onclick="resetSK()">重置 SK 密钥</button>
+  </div>
+</div>
+
+<div class="metrics-grid" id="metricsGrid">
+  <div class="metric-card"><div class="label">命中率</div><div class="value green" id="hitRate">0%</div><div class="sub">cache hits / total</div></div>
+  <div class="metric-card"><div class="label">总请求数</div><div class="value blue" id="totalRequests">0</div><div class="sub">全部请求</div></div>
+  <div class="metric-card"><div class="label">缓存命中</div><div class="value green" id="cacheHits">0</div><div class="sub">直接命中</div></div>
+  <div class="metric-card"><div class="label">缓存未命中</div><div class="value orange" id="cacheMisses">0</div><div class="sub">转发上游</div></div>
+  <div class="metric-card"><div class="label">Token 节省</div><div class="value purple" id="tokensSaved">0</div><div class="sub">估算节省</div></div>
+  <div class="metric-card"><div class="label">平均响应</div><div class="value blue" id="avgTime">0ms</div><div class="sub">平均耗时</div></div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-card"><h3>缓存命中率趋势</h3><canvas id="hitRateChart"></canvas></div>
+  <div class="chart-card"><h3>请求类型分布</h3><canvas id="typeChart"></canvas></div>
+</div>
+
+<div class="bottom-row">
+  <div class="table-card">
+    <h3>热点查询 Top 10</h3>
+    <table><thead><tr><th>查询内容</th><th>命中</th></tr></thead><tbody id="hotQueriesBody"></tbody></table>
+  </div>
+  <div class="table-card">
+    <h3>最近请求</h3>
+    <div style="max-height:300px;overflow-y:auto;">
+      <table><thead><tr><th>用户查询</th><th>状态</th><th>时间</th></tr></thead><tbody id="recentBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+let hitRateChart, typeChart;
+let timestamps = [], hitRates = [];
+
+function toggleConfig() {
+  document.getElementById('configPanel').classList.toggle('show');
+  if (document.getElementById('configPanel').classList.contains('show')) loadConfig();
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('/admin/config');
+    const cfg = await r.json();
+    document.getElementById('cfgUpstreamUrl').value = cfg.upstream_url || '';
+    document.getElementById('cfgUpstreamKey').value = cfg.upstream_key || '';
+    document.getElementById('cfgUpstreamModel').value = cfg.upstream_model || '';
+    document.getElementById('skDisplay').textContent = 'SK: ' + (cfg.sk || '');
+  } catch(e) {}
+}
+
+async function saveConfig() {
+  try {
+    const r = await fetch('/admin/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        upstream_url: document.getElementById('cfgUpstreamUrl').value,
+        upstream_key: document.getElementById('cfgUpstreamKey').value,
+        upstream_model: document.getElementById('cfgUpstreamModel').value
+      })
+    });
+    const res = await r.json();
+    if (res.success) alert('配置已保存！');
+  } catch(e) { alert('保存失败: ' + e); }
+}
+
+async function resetSK() {
+  if (!confirm('确定要重置 SK 密钥吗？')) return;
+  try {
+    const r = await fetch('/admin/reset-sk', {method:'POST'});
+    const res = await r.json();
+    if (res.success) { document.getElementById('skDisplay').textContent = 'SK: ' + res.sk; alert('新的 SK: ' + res.sk); }
+  } catch(e) { alert('重置失败'); }
+}
+
+function initCharts() {
+  const hitCtx = document.getElementById('hitRateChart').getContext('2d');
+  hitRateChart = new Chart(hitCtx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: '命中率 %', data: [], borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', fill: true, tension: 0.3, pointRadius: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#6b6f83', maxTicksLimit: 10 }, grid: { color: '#1f2240' } },
+        y: { min: 0, max: 100, ticks: { color: '#6b6f83', callback: v=>v+'%' }, grid: { color: '#1f2240' } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  const typeCtx = document.getElementById('typeChart').getContext('2d');
+  typeChart = new Chart(typeCtx, {
+    type: 'doughnut',
+    data: { labels: ['代码生成','调试','代码解释','对话','通用问答'], datasets: [{ data: [0,0,0,0,0], backgroundColor: ['#667eea','#ff9800','#4caf50','#ab47bc','#607d8b'] }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: '#8b8fa3', font: { size: 11 }, padding: 12 } } }
+    }
+  });
+}
+
+async function fetchMetrics() {
+  try {
+    const [metrics, history, hot, cacheLevels] = await Promise.all([
+      fetch('/api/metrics').then(r => r.json()),
+      fetch('/api/history?hours=1').then(r => r.json()),
+      fetch('/api/hot-queries').then(r => r.json()),
+      fetch('/api/cache-levels').then(r => r.json())
+    ]);
+
+    document.getElementById('hitRate').textContent = (metrics.hit_rate * 100).toFixed(1) + '%';
+    document.getElementById('totalRequests').textContent = metrics.total_requests || 0;
+    document.getElementById('cacheHits').textContent = metrics.cache_hits || 0;
+    document.getElementById('cacheMisses').textContent = metrics.cache_misses || 0;
+    document.getElementById('tokensSaved').textContent = (metrics.tokens_saved || 0).toLocaleString();
+    document.getElementById('avgTime').textContent = Math.round(metrics.avg_response_time || 0) + 'ms';
+
+    if (history.timestamps && history.timestamps.length > 0) {
+      timestamps = history.timestamps.map(t => new Date(t).toLocaleTimeString('zh-CN'));
+      hitRates = history.hit_rates;
+      hitRateChart.data.labels = timestamps.slice(-30);
+      hitRateChart.data.datasets[0].data = hitRates.slice(-30);
+      hitRateChart.update('none');
+    }
+
+    typeChart.data.datasets[0].data = [
+      metrics.code_generation || 0, metrics.debugging || 0,
+      metrics.code_explanation || 0, metrics.conversation || 0, metrics.general_qa || 0
+    ];
+    typeChart.update('none');
+
+    if (hot && hot.length > 0) {
+      document.getElementById('hotQueriesBody').innerHTML = hot.map(h =>
+        '<tr><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (h.query || '') + '</td><td><span class="badge">' + (h.hit_count || 0) + '</span></td></tr>'
+      ).join('');
+    }
+
+    if (history.timestamps && history.timestamps.length > 0) {
+      const queries = history.queries || [];
+      const recent = history.timestamps.slice(-20).map((t, i) => {
+        const j = history.timestamps.length - 20 + i;
+        const isHit = history.cache_hits && history.cache_hits[j];
+        const tagClass = isHit ? 'cache' : 'api';
+        const tagText = isHit ? '缓存' : 'API';
+        const queryText = (queries[j] || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return '<tr><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + queryText + '">' + (queryText || '-') + '</td>' +
+          '<td><span class="hit-tag ' + tagClass + '">' + tagText + '</span></td>' +
+          '<td>' + t.substring(11,19) + '</td></tr>';
+      }).reverse().join('');
+      document.getElementById('recentBody').innerHTML = recent;
+    }
+
+  } catch(e) { console.error('Fetch error:', e); }
+}
+
+initCharts();
+loadConfig();
+fetchMetrics();
+setInterval(fetchMetrics, 2000);
+</script>
+</body>
+</html>
